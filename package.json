@@ -1,6 +1,6 @@
 {
   "name": "jet-dev-tool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "jet-dev-tool",
   "main": "index.js",
   "bin": {
@@ -26,7 +26,8 @@
     "koa-router": "^7.2.1",
     "koa-send": "^4.1.0",
     "lru-cache": "^4.1.1",
-    "node-fetch": "^1.7.1"
+    "node-fetch": "^1.7.1",
+    "semver": "^5.4.1"
   },
   "devDependencies": {
     "nodemon": "^1.11.0"
