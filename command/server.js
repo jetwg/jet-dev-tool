@@ -57,10 +57,16 @@ module.exports = async function (option, args, program) {
         mapDir: option.map,
         distDir: option.dist,
         useHash: hash, // 默认
-        beautify: !option.beautify,
-        remoteHost: option.host,
-        port: option.port
+        beautify: !option.beautify
     };
+    if (option.port) {
+        conf.port = option.port;
+    }
+
+    if (option.host) {
+        conf.remoteHost = option.host;
+    }
+
     console.log('packages', conf);
     if (!conf.distDir) {
         conf.distDir = path.join(srcDir, '..', 'jetdist');
