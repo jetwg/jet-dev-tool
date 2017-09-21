@@ -1,0 +1,25 @@
+{
+    "eslint": {
+        "env": {
+            "node": true,
+            "browser": true
+        },
+
+        "globals": {
+            "console": true,
+            "require": true,
+            "define": true,
+            "BNJS": true,
+            "replaceUrl": true,
+            "hideHeader": true,
+            "app": true
+        },
+
+        "rules": {
+            "no-console": 0,
+            "brace-style": [2, "1tabs"],
+            "fecs-no-require": false,
+            "fecs-prefer-async-await": "off"
+        }
+    }
+}
