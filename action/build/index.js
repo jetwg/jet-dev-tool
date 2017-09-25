@@ -78,32 +78,6 @@ module.exports = {
         return modInfos;
     },
     async outputPackages(result, opt) {
-        // console.log('opt', defaultOpt, conf);
-
-        // console.log('result', result);
-        // let main = packName;
-        // let packageConfFile = path.join(opt.srcDir, 'package.json');
-        // if (fs.existsSync(packageConfFile)) {
-        //     delete require.cache[packageConfFile];
-        //     let packageConf = require(packageConfFile);
-        //     if (packageConf.main) {
-        //         main = packageConf.main.replace(path.extname(packageConf.main), '');
-        //     }
-        // }
-
-        // 分包，构建结果是所有包文件的对象，先分成各个包
-        // let packages = {};
-        // console.log('result', result);
-        // for (let fileBuildInfo of result) {
-        //     let filepath = fileBuildInfo.filepath;
-        //     let dirname = filepath.split(path.sep)[1];
-        //     if (opt.packages.indexOf(dirname) > -1) {
-        //         if (!packages[dirname]) {
-        //             packages[dirname] = {map: {}};
-        //         }
-        //         packages[dirname].map[];
-        //     }
-        // }
 
         // 包的模块信息
         // let packInfo = {
@@ -116,7 +90,7 @@ module.exports = {
 
 
         for (let fileBuildInfo of result) {
-            console.log('filepath', fileBuildInfo.src, fileBuildInfo.defines);
+            // console.log('filepath', fileBuildInfo.src, fileBuildInfo.defines);
             // fileBuildInfo结构如下
             // {
             // src: 'atomWorker/AtomWorker.js',
@@ -133,8 +107,9 @@ module.exports = {
             if (extname && extname === '.js') {
                 packName = path.basename(packName, extname);
             }
-            // 是我们允许的包名
+            // 不是我们允许的包名
             if (opt.packages.indexOf(packName) === -1) {
+                log.warn(`排除了包: ${packName}`);
                 continue;
             }
 
@@ -146,6 +121,12 @@ module.exports = {
 
             // 往包里增加该文件的模块信息
             let defines = fileBuildInfo.defines;
+            let modules = Object.keys(defines);
+            if (!modules.length) { // 非amd模块的处理
+                log.error(`文件${filepath}里面没有定义任何AMD模块`);
+                // throw new Error(`文件${filepath}里面没有定义任何AMD模块`);
+            }
+
             for (let moduleId of Object.keys(defines)) {
                 let moduleInfo = defines[moduleId];
                 if (packInfo.map[moduleId]) {
@@ -213,7 +194,7 @@ module.exports = {
         let result = jet.walk(analyseOpt);
 
         let packageInfos = await module.exports.outputPackages(result, opt);
-        console.log('packageInfos', packageInfos, opt.saveMap);
+        // console.log('packageInfos', packageInfos, opt.saveMap);
         if (opt.saveMap) {
             fs.ensureDirSync(opt.mapDir);
             for (let packName of Object.keys(packageInfos)) {
