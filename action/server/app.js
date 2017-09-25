@@ -180,6 +180,7 @@ async function start(conf = {}) {
                 ctx.status = 404;
             }
             else {
+                ctx.type = 'application/x-javascript';
                 ctx.body = res;
             }
         }
@@ -204,6 +205,7 @@ async function start(conf = {}) {
                 ctx.status = 404;
             }
             else {
+                ctx.type = 'application/x-javascript';
                 ctx.body = res;
             }
         }
@@ -236,7 +238,7 @@ async function start(conf = {}) {
     });
 
     router.get('/', async function (ctx, next) {
-        ctx.type = 'text/html; charset=utf-8';
+        ctx.type = 'application/x-javascript; charset=utf-8';
         ctx.body = 'The server is ready!';
         return await next();
     });

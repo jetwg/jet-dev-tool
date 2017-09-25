@@ -1,6 +1,6 @@
 {
   "name": "jet-dev-tool",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "jet-dev-tool",
   "main": "index.js",
   "bin": {
@@ -19,7 +19,7 @@
     "commander": "^2.9.0",
     "fs-extra": "^3.0.1",
     "is-relative": "^1.0.0",
-    "jet-analyser": "git+https://github.com/jetwg/jet-analyser.git",
+    "jet-analyser": "^1.0.0",
     "koa": "^2.3.0",
     "koa-body": "^2.3.0",
     "koa-proxies": "^0.5.0",
