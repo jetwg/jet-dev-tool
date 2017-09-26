@@ -123,14 +123,16 @@ module.exports = {
             let defines = fileBuildInfo.defines;
             let modules = Object.keys(defines);
             if (!modules.length) { // 非amd模块的处理
-                log.error(`文件${filepath}里面没有定义任何AMD模块`);
+                log.warn(`文件${filepath}里面没有定义任何AMD模块`);
                 // throw new Error(`文件${filepath}里面没有定义任何AMD模块`);
             }
 
             for (let moduleId of Object.keys(defines)) {
                 let moduleInfo = defines[moduleId];
                 if (packInfo.map[moduleId]) {
-                    log.warn(`包${packName}里面定义两个及以上相同amd模块${moduleId}， 将只保留一个，请check代码正确性`);
+                    log.error(`包${packName}里面定义两个及以上相同amd模块${moduleId}`);
+                    // log.warn(`包${packName}里面定义两个及以上相同amd模块${moduleId}， 将只保留一个，请check代码正确性`);
+                    process.exit(1);
                 }
                 packInfo.map[moduleId] = {
                     p: fileBuildInfo.dist,

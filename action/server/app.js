@@ -16,6 +16,8 @@ const util = require('../../lib/util');
 
 async function getRemotePackages(pkgs, conf) {
     let http = require('../../lib/http');
+
+    log.warn('远端请求: ' + conf.remoteHost + '/packinfo?packs=' + pkgs.join(','));
     let res =  await http.get({
         url: conf.remoteHost + '/packinfo',
         query: {
@@ -67,6 +69,7 @@ async function loadRemoteCode(codePaths, conf) {
     let lackPaths = [];
     for (let filePath of codePaths) {
         let fullpath = path.join(conf.distDir, filePath);
+        // console.log('fullpath', fullpath, !fs.existsSync(fullpath));
         if (!fs.existsSync(fullpath)) {
             lackPaths.push(filePath);
         }
@@ -76,18 +79,21 @@ async function loadRemoteCode(codePaths, conf) {
     }
 
     let http = require('../../lib/http');
+
+    log.warn('远端请求: ' + conf.remoteHost + '/code?path=' + lackPaths.join(','));
     let res =  await http.get({
         url: conf.remoteHost + '/code',
         query: {
             path: codePaths.join(',')
         }
     });
+
     // 返回正确
     if (!res.status) {
         let data = res.data;
         for (let codePath of Object.keys(data)) {
             let code = data[codePath];
-            if (code === null) {
+            if (code === null || code === false) {
                 log.warn('远端请求该路径代码失败: ' + codePath);
             }
             else {
@@ -128,16 +134,20 @@ async function start(conf = {}) {
     jetcore.registerPlugin('onLackPackages', async function (packName) {
         await getRemotePackages([packName], conf);
     });
-    console.log(conf.remoteHost);
+    console.log('远程Jet服务器： ', conf.remoteHost);
+
     // 日志收集
     app.use(async function (ctx, next) {
         ctx.set('Access-Control-Allow-Origin', '*');
+        ctx.addInfo = function () {};
+
         try {
             await next();
+            log.info(`请求： ${ctx.url}, (status: ${ctx.status})`);
         }
         catch (e) {
             console.log('处理错误', e);
-            log.info(`请求： ${ctx.path }, (status: ${ctx.status})`);
+            log.info(`请求： ${ctx.url}, (status: ${ctx.status})`);
         }
     });
 
@@ -148,6 +158,7 @@ async function start(conf = {}) {
         let matchPath = ctx.path.replace('/static', '');
         let file = path.join(conf.srcDir, matchPath);
         if (fs.existsSync(file)) {
+            log.info(`请求： ${ctx.path }，本地`);
             return await send(ctx, matchPath, {
                 root: conf.srcDir,
                 gzip: true
@@ -158,11 +169,11 @@ async function start(conf = {}) {
 
     // 上面的中间件，没有在本地找到静态文件，就代理到线上
     app.use(proxy('/static', {
-        target: conf.remoteHost
+        target: conf.remoteHost,
         // changeOrigin: true,
         // agent: new httpsProxyAgent('http://1.2.3.4:88'),
         // rewrite: path => path.replace(/^\/octocat(\/|\/\w+)?$/, '/vagusx'),
-        // logs: true
+        logs: true
     }));
 
     router.get('/bypath', async function (ctx, next) {
@@ -175,7 +186,7 @@ async function start(conf = {}) {
 
             await loadRemoteCode(paths, conf); // 多加的， 加载远程代码
 
-            let res = await jetcore.bypath(paths);
+            let res = await jetcore.bypath(paths, ctx);
             if (res === false) {
                 ctx.status = 404;
             }
@@ -187,6 +198,7 @@ async function start(conf = {}) {
         catch (e) {
             ctx.status = 404;
         }
+        log.info(`请求： ${ctx.path }, (status: ${ctx.status})`);
     });
 
     router.get('/byid', async function (ctx, next) {
@@ -200,7 +212,7 @@ async function start(conf = {}) {
 
             await loadRemotePackages(ids, conf); // 多加的， 加载远程包
 
-            let res = await jetcore.byid(ids);
+            let res = await jetcore.byid(ids, ctx);
             if (res === false) {
                 ctx.status = 404;
             }
@@ -218,17 +230,17 @@ async function start(conf = {}) {
 
     router.get('/deps', async function (ctx, next) {
         ctx.set('Access-Control-Allow-Origin', '*');
-
+        log.info(`请求： ${ctx.path }`);
         if (ctx.query.ids) {
             return ctx.body = {
                 status: 0,
-                data: await jetcore.getPackInfosByIds(ctx.query.ids.split(','))
+                data: await jetcore.getPackInfosByIds(ctx.query.ids.split(','), ctx)
             };
         }
         else if (ctx.query.packs) {
             return ctx.body = {
                 status: 0,
-                data: await jetcore.getPackInfosByPacks(ctx.query.packs.split(','), true)
+                data: await jetcore.getPackInfosByPacks(ctx.query.packs.split(','), true, ctx)
             };
         }
         return ctx.body = {

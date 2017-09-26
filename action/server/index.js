@@ -11,15 +11,15 @@ const chokidar = require('chokidar');
 const chalk = require('chalk');
 const buildAction = require('../build/index');
 const log = require('../../lib/log');
-const jetcore = require('/Users/baidu/project/jet-node/app/components/jetcore.js')();
+const jetcore = require('./jetcore.js')();
 
 let buildStatus = 0;
 
 module.exports = {
     async run(opt) {
         let conf = {
-            port: 8111,
-            remoteHost: 'http://127.0.0.1:8060',
+            port: 8111, // 本地jet开发服务端口
+            remoteHost: 'http://gzhxy-ps-bfw-jet-zhaopin0.gzhxy:8060', // jet服务器
             distDir: '',
             mapDir: '',
             srcDir: '',
@@ -50,7 +50,7 @@ function listenDir(conf) {
         ignored: ignore
     };
     let watchDirs = packages.map(pack => path.join(srcDir, `(${pack}/**.js|${pack}.js)`));
-    console.log('watchDirs', watchDirs);
+    console.log('监听目录: ', watchDirs);
     // 监控项目文件的改动
     chokidar.watch(watchDirs, chokidarOpt).on('all', async (event, thePath) => {
         /* eslint-disable fecs-prefer-destructure */
