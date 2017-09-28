@@ -240,19 +240,20 @@ module.exports = function (app) {
         },
 
         // 读多个文件
-        async readFiles(paths, ctx) {
+        async readFiles(paths, root, ctx) {
             let allPromises = [];
             for (let filepath of paths) {
                 // 必须path.join 不能用resolve， 防止filepath为绝对路径的攻击
-                let absPath = path.join(distDir, filepath);
+                let absPath = path.join(root || distDir, filepath);
+                console.log('absPath', absPath);
                 // 每个文件读取包裹一个promise
                 allPromises.push(readFile.call(ctx, absPath, filepath));
             }
             return await Promise.all(allPromises);
         },
-
-        async bypath(paths, ctx) {
-            let contents = await this.readFiles(paths, ctx);
+        // 可自定义root， 没有就是distDir了
+        async bypath(paths, root, ctx) {
+            let contents = await this.readFiles(paths, root, ctx);
             let isAllError = true;
             let retContent = '';
 
@@ -278,9 +279,12 @@ module.exports = function (app) {
 
         async byid(ids, ctx) { // 通过id commbo， 必须加时间戳不做缓存
             let paths = [];
+
             for (let id of ids) {
+                // console.log('id', id);
                 let res = await findId.call(ctx, id, null); // 在这一步有可能包 会更换
                 let modInfo = res.modInfo;
+                // console.log('modInfo', modInfo);
                 if (!modInfo) {
                     continue;
                 }

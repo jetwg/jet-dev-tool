@@ -56,7 +56,7 @@ async function getRemotePackages(pkgs, conf) {
     }
 }
 
-function findLocal(pkg, needCache, conf) {
+function findLocal(pkg, conf) {
     let pkgPath = path.join(conf.mapDir, pkg + '.conf.json');
     if (fs.existsSync(pkgPath)) {
         return true;
@@ -64,7 +64,7 @@ function findLocal(pkg, needCache, conf) {
     return false;
 }
 
-async function loadRemoteCode(codePaths, conf) {
+async function loadRemoteCode(codePaths, rootType, conf) {
 
     let lackPaths = [];
     for (let filePath of codePaths) {
@@ -84,7 +84,8 @@ async function loadRemoteCode(codePaths, conf) {
     let res =  await http.get({
         url: conf.remoteHost + '/code',
         query: {
-            path: codePaths.join(',')
+            path: codePaths.join(','),
+            rootType: rootType // 是jetdist目录 还是 static 目录
         }
     });
 
@@ -97,10 +98,18 @@ async function loadRemoteCode(codePaths, conf) {
                 log.warn('远端请求该路径代码失败: ' + codePath);
             }
             else {
-                let absPath = path.join(conf.distDir, codePath);
-                console.log('get code success: ', absPath);
-                fs.ensureFileSync(absPath);
-                fs.writeFileSync(absPath, code);
+                console.log('get code success: ', codePath);
+                // 静态代码不污染用户static目录，而是新建一个隐藏目录
+                if (rootType === 'static') {
+                    let absPath = path.join(conf.staticDir, codePath);
+                    fs.ensureFileSync(absPath);
+                    fs.writeFileSync(absPath, code);
+                }
+                else {
+                    let absPath = path.join(conf.distDir, codePath);
+                    fs.ensureFileSync(absPath);
+                    fs.writeFileSync(absPath, code);
+                }
             }
         }
     }
@@ -176,17 +185,51 @@ async function start(conf = {}) {
         logs: true
     }));
 
-    router.get('/bypath', async function (ctx, next) {
+    router.get('/bypath', '/combo/jetdist', async function (ctx, next) {
         try {
             let params = ctx.query;
             let keys = Object.keys(params);
             let comboPath = keys.length ? keys[0] : '';
+            if (comboPath.indexOf('?') !== 0) {
+                ctx.status = 403; // 访问路径格式不对，403拒绝访问
+                return;
+            }
             comboPath = comboPath.replace('?', '');
             let paths = Array.from(new Set(comboPath.split(','))); // 去重
 
-            await loadRemoteCode(paths, conf); // 多加的， 加载远程代码
+            await loadRemoteCode(paths, null, conf); // 多加的， 加载远程代码
 
             let res = await jetcore.bypath(paths, ctx);
+            if (res === false) {
+                ctx.status = 404;
+            }
+            else {
+                ctx.type = 'application/x-javascript';
+                ctx.body = res;
+            }
+        }
+        catch (e) {
+            ctx.status = 404;
+        }
+        log.info(`请求： ${ctx.path }, (status: ${ctx.status})`);
+    });
+
+    // 和 bypath是一样的，只不过在线上该路径是nginx直接combo处理
+    router.get('/combo/static', async function (ctx, next) {
+        try {
+            let params = ctx.query;
+            let keys = Object.keys(params);
+            let comboPath = keys.length ? keys[0] : '';
+            if (comboPath.indexOf('?') !== 0) {
+                ctx.status = 403; // 访问路径格式不对，403拒绝访问
+                return;
+            }
+            comboPath = comboPath.replace('?', '');
+            let paths = Array.from(new Set(comboPath.split(','))); // 去重
+
+            await loadRemoteCode(paths, 'static', conf); // 多加的， 加载远程代码
+
+            let res = await jetcore.bypath(paths, conf.staticDir, ctx);
             if (res === false) {
                 ctx.status = 404;
             }
@@ -206,9 +249,13 @@ async function start(conf = {}) {
             let params = ctx.query;
             let keys = Object.keys(params);
             let comboPath = keys.length ? keys[0] : '';
+            if (comboPath.indexOf('?') !== 0) {
+                ctx.status = 403; // 访问路径格式不对，403拒绝访问
+                return;
+            }
             comboPath = comboPath.replace('?', '');
             let ids = Array.from(new Set(comboPath.split(','))); // 去重
-            // console.log('params', params, paths);
+            console.log('ids', ids);
 
             await loadRemotePackages(ids, conf); // 多加的， 加载远程包
 
@@ -222,6 +269,7 @@ async function start(conf = {}) {
             }
         }
         catch (e) {
+            console.log('jet error', e);
             ctx.status = 404;
         }
 

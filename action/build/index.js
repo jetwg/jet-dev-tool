@@ -30,6 +30,8 @@ module.exports = {
         let packName = opt.packageName;
         let fileBuildInfo = jet.analyse(opt);
 
+        // console.log('fileBuildInfo', fileBuildInfo);
+
         // 包的模块信息
         let modInfos = {};
         let defines = fileBuildInfo.defines;
@@ -39,43 +41,22 @@ module.exports = {
                 log.warn(`包${packName}里面定义两个及以上相同amd模块${moduleId}， 将只保留一个，请check代码正确性`);
             }
             modInfos[moduleId] = {
+                output: fileBuildInfo.output,
                 p: opt.baseId + '.js',
                 d: moduleInfo.depends,
                 a: moduleInfo.requires
             };
-
         }
 
-        // let packResult = {};
-        // let defines = item.defines;
-        // for (let moduleId of Object.keys(defines)) {
-        //     let thePackName = moduleId.split('/')[0];
-        //     console.log('thePackName', thePackName);
-        //     if (!packResult.hasOwnProperty(thePackName)) {
-        //         packResult[thePackName] = [];
-        //     }
-        //     packResult[thePackName].push(item);
-        // }
-        // console.log('result',baseId, subpath,  result, defines);
-        // console.log('packResult',packResult);
-        // 输出json conf
-        // let map = {};
-        // for (let thePackName of Object.keys(packResult)) {
-        //     map[thePackName] = map[thePackName] || {};
-        //     for (let item of packResult[thePackName]) {
-        //         let defines = item.defines;
-        //         for (let moduleId of Object.keys(item.defines)) {
-        //             let define = defines[moduleId];
-        //
-        //             map[thePackName][moduleId] = {
-        //                 p: item.dist,
-        //                 d: define.depends,
-        //                 a: define.requires
-        //             };
-        //         }
-        //     }
-        // }
         return modInfos;
+    },
+    saveOriginPath(distPath, originPath) {
+        fs.copy(distPath, originPath, function (err, cont) {
+            if (err) {
+                console.error('readFile error', err);
+                return;
+            }
+        });
     },
     async outputPackages(result, opt) {
 
@@ -139,6 +120,15 @@ module.exports = {
                     a: moduleInfo.requires
                 };
             }
+
+            // 如果使用hash. 那么还需要保存一份原始路径的代码，用于兜底
+            if (opt.useHash) {
+
+                let originPath = path.join(opt.distDir, fileBuildInfo.src);
+                let distPath = path.join(opt.distDir, fileBuildInfo.dist);
+                console.log(distPath, originPath);
+                this.saveOriginPath(distPath, originPath);
+            }
         }
 
         // require('atomworker') 实际是require哪个
@@ -195,7 +185,8 @@ module.exports = {
         let result = jet.walk(analyseOpt);
 
         let packageInfos = await module.exports.outputPackages(result, opt);
-        // console.log('packageInfos', packageInfos, opt.saveMap);
+
+
         if (opt.saveMap) {
             fs.ensureDirSync(opt.mapDir);
             for (let packName of Object.keys(packageInfos)) {

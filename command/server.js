@@ -50,14 +50,15 @@ module.exports = async function (option, args, program) {
     }
     packages = Array.from(new Set(packages)); // 去重
 
-    let hash = !!option.hash;
+    // let hash = !!option.hash;
     let conf = {
         srcDir,
         packages,
         mapDir: option.map,
         distDir: option.dist,
-        useHash: hash, // 默认
-        beautify: !option.beautify
+        useHash: false, // 默认
+        beautify: true,
+        tmpDir: path.join(srcDir, '..', '.jettmp')
     };
     if (option.port) {
         conf.port = option.port;
@@ -69,11 +70,18 @@ module.exports = async function (option, args, program) {
 
     console.log('packages', conf);
     if (!conf.distDir) {
-        conf.distDir = path.join(srcDir, '..', 'jetdist');
+        conf.distDir = path.join(conf.tmpDir, 'jetdist');
     }
     if (!conf.mapDir) {
-        conf.mapDir = path.join(conf.distDir, '..', 'jetmap');
+        conf.mapDir = path.join(conf.tmpDir, 'jetmap');
     }
+    if (!conf.staticDir) {
+        conf.staticDir = path.join(conf.tmpDir, 'static');
+    }
+    fs.ensureDirSync(conf.tmpDir);
+    fs.ensureDirSync(conf.distDir);
+    fs.ensureDirSync(conf.mapDir);
+    fs.ensureDirSync(conf.staticDir);
 
     let res;
     try {

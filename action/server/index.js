@@ -19,7 +19,8 @@ module.exports = {
     async run(opt) {
         let conf = {
             port: 8111, // 本地jet开发服务端口
-            remoteHost: 'http://gzhxy-ps-bfw-jet-zhaopin0.gzhxy:8060', // jet服务器
+            // remoteHost: 'http://gzhxy-ps-bfw-jet-zhaopin0.gzhxy:8060', // jet服务器
+            remoteHost: 'http://bjyz-wukaifang.epc.baidu.com:8060', // jet服务器
             distDir: '',
             mapDir: '',
             srcDir: '',
@@ -41,21 +42,49 @@ module.exports = {
     }
 };
 
+function writeFile(filepath, cont) {
+    fs.ensureFile(filepath)
+        .then(() => {
+            fs.writeFile(filepath, cont, function (err) {
+                if (err) {
+                    return console.error(err);
+                }
+                console.log('写入文件: ', filepath);
+            });
+        })
+        .catch(err => {
+            console.error(err);
+        });
+}
+
+async function readFile(thePath) {
+    return new Promise(function (resolve, reject) {
+        fs.readFile(thePath, 'utf8', function (err, cont) {
+            if (err) {
+                console.error('读取文件失败');
+                return reject(err);
+            }
+            resolve(cont);
+        });
+    });
+}
+
+
 function listenDir(conf) {
-    let {ignore, packages, srcDir} = conf;
+    let {ignore, packages, srcDir, distDir} = conf;
 
     // 更新 增量构建
     let chokidarOpt = {
         ignoreInitial: true,
         ignored: ignore
     };
-    let watchDirs = packages.map(pack => path.join(srcDir, `(${pack}/**.js|${pack}.js)`));
+    let watchDirs = packages.map(pack => path.join(srcDir, `${pack}/**/*.js`));
     console.log('监听目录: ', watchDirs);
-    // 监控项目文件的改动
-    chokidar.watch(watchDirs, chokidarOpt).on('all', async (event, thePath) => {
+
+    async function handleWatch(event, thePath) {
         /* eslint-disable fecs-prefer-destructure */
         // thePath.replace(listenDir, '') => /app/atom_local_item/index.atom
-
+        console.log('thePath', thePath);
         let filepath = thePath.replace(srcDir, ''); // => /atomWorker/AtomWorker.js
         filepath = filepath.replace(/^\//, ''); // => atomWorker/AtomWorker.js
 
@@ -77,14 +106,20 @@ function listenDir(conf) {
         // 正在编译
         buildStatus = 1;
         try {
+            let code = await readFile(thePath);
             let moduleInfos = await buildAction.buildFile({
-                code: fs.readFileSync(thePath, 'utf8'),
+                code: code,
                 baseId: baseId,
                 packageName: packName,
                 amdWrapper: false,
                 beautify: true  // 【可选】是否格式化代码
             });
-            console.log('moduleInfos', moduleInfos);
+            // console.log('moduleInfos', moduleInfos);
+            for (let moduleId of Object.keys(moduleInfos)) {
+                let moduleInfo = moduleInfos[moduleId];
+                writeFile(path.join(distDir, filepath), moduleInfo.output);
+                delete moduleInfo.output;
+            }
 
             jetcore.addModulesToCache(packName, moduleInfos);
             log.info('构建完成');
@@ -93,7 +128,11 @@ function listenDir(conf) {
             log.error(`分析文件${filepath}失败`, e);
         }
         buildStatus = 0;
-    });
+    }
+
+    // 监控项目文件的改动
+    chokidar.watch(watchDirs, chokidarOpt).on('add', handleWatch);
+    chokidar.watch(watchDirs, chokidarOpt).on('change', handleWatch);
 }
 
 
