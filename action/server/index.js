@@ -20,7 +20,7 @@ module.exports = {
         let conf = {
             port: 8111, // 本地jet开发服务端口
             // remoteHost: 'http://gzhxy-ps-bfw-jet-zhaopin0.gzhxy:8060', // jet服务器
-            remoteHost: 'http://bjyz-wukaifang.epc.baidu.com:8060', // jet服务器
+            remoteHost: 'http://bjyz-wukaifang.epc.baidu.com:8062', // jet服务器
             distDir: '',
             mapDir: '',
             srcDir: '',
@@ -81,7 +81,7 @@ function listenDir(conf) {
     let watchDirs = packages.map(pack => path.join(srcDir, `${pack}/**/*.js`));
     console.log('监听目录: ', watchDirs);
 
-    async function handleWatch(event, thePath) {
+    async function handleWatch(thePath) {
         /* eslint-disable fecs-prefer-destructure */
         // thePath.replace(listenDir, '') => /app/atom_local_item/index.atom
         console.log('thePath', thePath);

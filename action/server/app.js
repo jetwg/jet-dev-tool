@@ -185,7 +185,7 @@ async function start(conf = {}) {
         logs: true
     }));
 
-    router.get('/bypath', '/combo/jetdist', async function (ctx, next) {
+    router.get(['/bypath', '/combo/jetdist'], async function (ctx, next) {
         try {
             let params = ctx.query;
             let keys = Object.keys(params);
@@ -198,8 +198,7 @@ async function start(conf = {}) {
             let paths = Array.from(new Set(comboPath.split(','))); // 去重
 
             await loadRemoteCode(paths, null, conf); // 多加的， 加载远程代码
-
-            let res = await jetcore.bypath(paths, ctx);
+            let res = await jetcore.bypath(paths, null, ctx);
             if (res === false) {
                 ctx.status = 404;
             }
@@ -255,7 +254,7 @@ async function start(conf = {}) {
             }
             comboPath = comboPath.replace('?', '');
             let ids = Array.from(new Set(comboPath.split(','))); // 去重
-            console.log('ids', ids);
+            // console.log('ids', ids);
 
             await loadRemotePackages(ids, conf); // 多加的， 加载远程包
 
