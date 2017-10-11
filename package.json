@@ -1,6 +1,6 @@
 {
   "name": "jet-dev-tool",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "jet-dev-tool",
   "main": "index.js",
   "bin": {
