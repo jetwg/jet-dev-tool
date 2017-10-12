@@ -102,7 +102,7 @@ function listenDir(conf) {
 
         // 拿到baseId
         let baseId = path.join(path.dirname(filepath), path.basename(filepath, extname));
-        console.log('packName', packName, baseId, extname, filepath);
+        // console.log('packName', packName, baseId, extname, filepath);
         // 正在编译
         buildStatus = 1;
         try {
@@ -121,7 +121,21 @@ function listenDir(conf) {
                 delete moduleInfo.output;
             }
 
+            let ctx = {addInfo(...args) {
+                // console.log(args);
+            }}; // 没有上下文，构建一个假的
+
+            // 往内存增加包文件
+            await jetcore.addPackage(packName, ctx);
+
+            // 往内存新增修改
             jetcore.addModulesToCache(packName, moduleInfos);
+
+            // 把新的配置保存包文件
+            let packInfos = await jetcore.getPackInfosByPacks([packName], false, ctx);
+
+
+            buildAction.saveConf(packName, packInfos[packName], conf);
             log.info('构建完成');
         }
         catch (e) {

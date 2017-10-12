@@ -18,6 +18,21 @@ let defaultOpt = {
     clean: false // 先清空dist 和 map两个输出目录
 };
 
+function writeFile(filepath, cont) {
+    fs.ensureFile(filepath)
+        .then(() => {
+            fs.writeFile(filepath, cont, function (err) {
+                if (err) {
+                    return console.error(err);
+                }
+                console.log('写入文件: ', filepath);
+            });
+        })
+        .catch(err => {
+            console.error(err);
+        });
+}
+
 module.exports = {
     async buildFile(conf) {
         let opt = {
@@ -57,6 +72,28 @@ module.exports = {
                 return;
             }
         });
+    },
+    async readFile(thePath) {
+        return new Promise(function (resolve, reject) {
+            fs.readFile(thePath, 'utf8', function (err, cont) {
+                if (err) {
+                    console.error('读取文件失败');
+                    return reject(err);
+                }
+                resolve(cont);
+            });
+        });
+    },
+    saveConf(packName, packInfo, opt) {
+        fs.ensureDirSync(opt.mapDir);
+        let jetmap = {
+            [packName]: packInfo
+        };
+        writeFile(
+            path.join(opt.mapDir, packName + '.conf.json'),
+            JSON.stringify(jetmap, null, 4)
+        );
+        savaPHPMap(jetmap, packName, opt); // 可以一个文件存多个包信息
     },
     async outputPackages(result, opt) {
 
@@ -191,12 +228,7 @@ module.exports = {
             fs.ensureDirSync(opt.mapDir);
             for (let packName of Object.keys(packageInfos)) {
                 let packInfo = packageInfos[packName];
-                let jetmap = {
-                    [packName]: packInfo
-                };
-                fs.writeFileSync(path.join(opt.mapDir, packName + '.conf.json'), JSON.stringify(jetmap, null, 4));
-
-                savaPHPMap(jetmap, packName, opt); // 可以一个文件存多个包信息
+                this.saveConf(packName, packInfo, opt);
             }
         }
 
@@ -261,6 +293,8 @@ function savaPHPMap(packageInfos, filename, opt) {
     output += `);
     ?>
     `;
-
-    fs.writeFileSync(path.join(opt.mapDir, filename + '.conf.php'), output);
+    writeFile(
+        path.join(opt.mapDir, filename + '.conf.php'),
+        output
+    );
 }

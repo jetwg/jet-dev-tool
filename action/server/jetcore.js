@@ -228,7 +228,9 @@ module.exports = function (app) {
                 plugin[name] = cb;
             }
         },
-
+        async addPackage(packName, ctx) {
+            await addPackage.call(ctx, packName);
+        },
         // 增加一或多个模块到指定包缓存
         addModulesToCache(packName, moduleInfos) {
             let packInfo = lruMapCache.get(packName);

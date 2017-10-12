@@ -70,6 +70,14 @@ module.exports = {
                 {
                     param: '-h, --host <host>',
                     desc: 'Jet服务地址 ,建议配置线下'
+                },
+                {
+                    param: '-d, --dist <dist>',
+                    desc: '编译代码输出路径(default: ${src}/../.jettmp/jetdist) '
+                },
+                {
+                    param: '-m, --map <map>',
+                    desc: '映射配置文件输出路径(default: ${src}/../.jettmp/jetmap)'
                 }
             ]
         }
