@@ -28,6 +28,7 @@
     "koa-send": "^4.1.0",
     "lru-cache": "^4.1.1",
     "node-fetch": "^1.7.1",
+    "pm2": "^2.7.1",
     "semver": "^5.4.1"
   },
   "devDependencies": {
