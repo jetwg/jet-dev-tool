@@ -13,7 +13,9 @@ const buildAction = require('../build/index');
 const log = require('../../lib/log');
 const jetcore = require('./jetcore.js')();
 
-let buildStatus = 0;
+let compiling = false;
+let nextconf = '';
+let waitingPaths = [];
 
 module.exports = {
     async run(opt) {
@@ -71,7 +73,7 @@ async function readFile(thePath) {
 
 
 function listenDir(conf) {
-    let {ignore, packages, srcDir, distDir} = conf;
+    let {ignore, packages, srcDir} = conf;
 
     // 更新 增量构建
     let chokidarOpt = {
@@ -81,76 +83,26 @@ function listenDir(conf) {
     let watchDirs = packages.map(pack => path.join(srcDir, `${pack}/**/*.js`));
     console.log('监听目录: ', watchDirs);
 
-    async function handleWatch(thePath) {
-        /* eslint-disable fecs-prefer-destructure */
-        // thePath.replace(listenDir, '') => /app/atom_local_item/index.atom
-        console.log('thePath', thePath);
-        let filepath = thePath.replace(srcDir, ''); // => /atomWorker/AtomWorker.js
-        filepath = filepath.replace(/^\//, ''); // => atomWorker/AtomWorker.js
-
-        // 拿到包名
-        let packName = filepath.split(path.sep)[0]; // 从文件里获取到包名
-        let extname = path.extname(filepath);
-        if (extname && extname === '.js') {
-            packName = path.basename(packName, extname);
-        }
-
-        // 不是我们允许的包名
-        if (packages.indexOf(packName) === -1) {
-            return;
-        }
-
-        // 拿到baseId
-        let baseId = path.join(path.dirname(filepath), path.basename(filepath, extname));
-        // console.log('packName', packName, baseId, extname, filepath);
-        // 正在编译
-        buildStatus = 1;
+    function handleWatch(thePath) {
+        console.log('文件处理', thePath);
         try {
-            let code = await readFile(thePath);
-            let moduleInfos = await buildAction.buildFile({
-                code: code,
-                baseId: baseId,
-                packageName: packName,
-                amdWrapper: false,
-                beautify: true  // 【可选】是否格式化代码
-            });
-            // console.log('moduleInfos', moduleInfos);
-            for (let moduleId of Object.keys(moduleInfos)) {
-                let moduleInfo = moduleInfos[moduleId];
-                writeFile(path.join(distDir, filepath), moduleInfo.output);
-                delete moduleInfo.output;
-            }
-
-            let ctx = {addInfo(...args) {
-                // console.log(args);
-            }}; // 没有上下文，构建一个假的
-
-            // 往内存增加包文件
-            await jetcore.addPackage(packName, ctx);
-
-            // 往内存新增修改
-            jetcore.addModulesToCache(packName, moduleInfos);
-
-            // 把新的配置保存包文件
-            let packInfos = await jetcore.getPackInfosByPacks([packName], false, ctx);
-
-
-            buildAction.saveConf(packName, packInfos[packName], conf);
-            log.info('构建完成');
+            compile(conf, thePath);
         }
         catch (e) {
-            log.error(`分析文件${filepath}失败`, e);
+            console.error('compile error', e);
         }
-        buildStatus = 0;
     }
 
     // 监控项目文件的改动
     chokidar.watch(watchDirs, chokidarOpt).on('add', handleWatch);
     chokidar.watch(watchDirs, chokidarOpt).on('change', handleWatch);
+
+    chokidar.watch(watchDirs, chokidarOpt).on('unlink', handleWatch);
+    // chokidar.watch(watchDirs, chokidarOpt).on('unlinkDir', handleRemoveWatch);
 }
 
-
 async function compileAll(conf) {
+    console.log('全部编译');
     // 第一次构建
     await buildAction.build({
         packages: conf.packages,
@@ -162,6 +114,109 @@ async function compileAll(conf) {
         useHash: false,
         beautify: true  // 【可选】是否格式化代码
     });
+    let lruMapCache = jetcore.getCacheObj();
+    lruMapCache.reset();
+}
+
+async function compileSingle(conf, thePath) {
+    /* eslint-disable fecs-prefer-destructure */
+    console.log('单编译');
+    let filepath = thePath.replace(conf.srcDir, ''); // => /atomWorker/AtomWorker.js
+    filepath = filepath.replace(/^\//, ''); // => atomWorker/AtomWorker.js
+
+    // 拿到包名
+    let packName = filepath.split(path.sep)[0]; // 从文件里获取到包名
+    let extname = path.extname(filepath);
+    if (extname && extname === '.js') {
+        packName = path.basename(packName, extname);
+    }
+
+    // 不是我们允许的包名
+    if (conf.packages.indexOf(packName) === -1) {
+        return;
+    }
+
+    try {
+        let code = await readFile(thePath);
+        // 拿到baseId
+        let baseId = path.join(path.dirname(filepath), path.basename(filepath, extname));
+        let moduleInfos = await buildAction.buildFile({
+            code: code,
+            baseId: baseId,
+            packageName: packName,
+            amdWrapper: false,
+            beautify: true  // 【可选】是否格式化代码
+        });
+        // console.log('moduleInfos', moduleInfos);
+        for (let moduleId of Object.keys(moduleInfos)) {
+            let moduleInfo = moduleInfos[moduleId];
+            writeFile(path.join(conf.distDir, filepath), moduleInfo.output);
+            delete moduleInfo.output;
+        }
+        let mapFile = path.resolve(conf.mapDir, packName + '.conf.json');
+        fs.ensureFileSync(mapFile);
+        let packInfos;
+        try {
+            delete require.cache[mapFile];
+            packInfos = require(mapFile);
+        }
+        catch (e) {
+            log.error(`require ${mapFile} fail`, e);
+            packInfos = {};
+        }
+
+        if (!packInfos[packName]) {
+            packInfos[packName] = {map: {}};
+        }
+        packInfos[packName].map = Object.assign(packInfos[packName].map, moduleInfos);
+
+        buildAction.saveConf(packName, packInfos[packName], conf);
+
+        let lruMapCache = jetcore.getCacheObj();
+        lruMapCache.del(packName);
+
+        log.info('构建完成');
+    }
+    catch (e) {
+        log.error(`分析文件${filepath}失败`, e);
+    }
+}
+
+
+async function dispatch(conf) {
+    if (!compiling && waitingPaths.length > 0) {
+        compiling = true;
+
+        // 开始消耗等待队列
+        let filePaths = waitingPaths;
+        nextconf = '';
+        waitingPaths = [];
+        log.info('compiling start');
+
+        // 如果只有一个文件改动了(不是删除)，那么就编译这个文件h好了，加快编译速度，适用于普通开发，一边写，一边保存，然后编译，然后浏览
+        if (filePaths.length === 1 && fs.existsSync(filePaths[0])) {
+            await compileSingle(conf, filePaths[0]);
+        }
+        else {
+            // 200ms改动了大量文件，一般是改动了目录或代码构建之后瞬时产生大量文件，此时直接全部编译
+            await compileAll(conf);
+        }
+
+        compiling = false;
+        log.info('compiling end');
+        dispatch(conf).then(function () {});
+    }
+}
+
+let timer = null;
+
+// 一次性改动多个文件，只会在最后一个改动后编译，如果正在编译中，有改动文件，会在编译结束后再次运行编译
+function compile(conf, filepath) {
+    waitingPaths.push(filepath);
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+        dispatch(conf).then(function () {});
+    }, 500);
 }
 
 function handleUncaughtException() {
