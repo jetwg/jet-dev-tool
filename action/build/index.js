@@ -256,8 +256,7 @@ function savaPHPMap(packageInfos, filename, opt) {
     // ?>
 
     // 输出php conf
-    let output = `
-    <?php
+    let output = `<?php
     return array(
     `;
 
