@@ -78,7 +78,7 @@ async function loadRemoteCode(codePaths, rootType, conf) {
     let res =  await http.get({
         url: conf.remoteHost + '/code',
         query: {
-            path: codePaths.join(','),
+            path: lackPaths.join(','),
             rootType: rootType // 是jetdist目录 还是 static 目录
         }
     });
