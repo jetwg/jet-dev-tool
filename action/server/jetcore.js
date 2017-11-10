@@ -1,5 +1,6 @@
 /**
  * @file util
+ *       和 jet-node的diff：   增加getCacheObj
  * @author kaivean
  */
 
@@ -228,6 +229,7 @@ module.exports = function (app) {
                 plugin[name] = cb;
             }
         },
+
         // 增加一或多个模块到指定包缓存
         addModulesToCache(packName, moduleInfos) {
             let packInfo = lruMapCache.get(packName);
@@ -244,7 +246,6 @@ module.exports = function (app) {
             for (let filepath of paths) {
                 // 必须path.join 不能用resolve， 防止filepath为绝对路径的攻击
                 let absPath = path.join(root || distDir, filepath);
-                console.log('absPath', absPath);
                 // 每个文件读取包裹一个promise
                 allPromises.push(readFile.call(ctx, absPath, filepath));
             }
@@ -252,26 +253,25 @@ module.exports = function (app) {
         },
         // 可自定义root， 没有就是distDir了
         async bypath(paths, root, ctx) {
-            let contents = await this.readFiles(paths, root, ctx);
-            let isAllError = true;
+            let validPaths = paths.filter(path => path.indexOf('_ignore_') !== 0);
+            if (!validPaths.length) {
+                ctx.addInfo('validpaths', 'empty');
+                return false;
+            }
+
+            let contents = await this.readFiles(validPaths, root, ctx);
             let retContent = '';
 
-            contents.forEach(function (content, index) {
-                let filepath = paths[index];
-                if (content !== false) {
-                    isAllError = false;
-                }
-                else {
-                    content = `console.warn("[JetError] Fail to read the module file <${filepath}> .");`;
+            let len = validPaths.length;
+            for (let i = 0; i < len; i++) {
+                let content = contents[i];
+                let filepath = validPaths[i];
+                if (content === false) {
                     ctx.addInfo('lackcontent', filepath);
+                    return false;
                 }
-
-                content = `\n/*module: ${filepath}*/` + content;
+                content = (i !== 0 ? '\n' : '') + `/*module: ${filepath}*/` + content;
                 retContent += content;
-            });
-
-            if (isAllError) {
-                return false;
             }
             return retContent;
         },
@@ -280,17 +280,16 @@ module.exports = function (app) {
             let paths = [];
 
             for (let id of ids) {
-                // console.log('id', id);
                 let res = await findId.call(ctx, id, null); // 在这一步有可能包 会更换
                 let modInfo = res.modInfo;
-                // console.log('modInfo', modInfo);
                 if (!modInfo) {
                     continue;
                 }
                 let jsPath = modInfo.p || '';
                 paths.push(jsPath);
             }
-            return await this.bypath(paths, ctx);
+
+            return await this.bypath(paths, null, ctx);
         },
 
         // 只会返回ids依赖的模块信息，但也是包格式返回

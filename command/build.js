@@ -66,11 +66,19 @@ module.exports = async function (option, args, program) {
 
     let res;
     try {
+        let startT =  Date.now();
         res = await buildAction.build(conf);
-        log.info('\n构建完成');
+        log.info('\n构建完成', Date.now() - startT);
     }
     catch (e) {
-        log.error('\n构建失败', e);
+        if (e.error) {
+            log.error(`在分析文件${e.config.subPath}时报错：`);
+            console.log(e.error);
+        }
+        else {
+            log.error('\n构建失败', e);
+        }
+
         process.exit(1);
     }
     return res;

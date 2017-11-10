@@ -7,6 +7,7 @@ const log = require('../../lib/log');
 const fs = require('fs-extra');
 const path = require('path');
 const jet = require('jet-analyser');
+const walk = require('./walk');
 
 let defaultOpt = {
     distDir: '',
@@ -39,13 +40,11 @@ module.exports = {
             // code: code,
             // baseId: baseId,
             amdWrapper: false,
-            beautify: true  // 【可选】是否格式化代码
+            beautify: true // 是否格式化代码
         };
         opt = Object.assign(opt, conf);
         let packName = opt.packageName;
         let fileBuildInfo = jet.analyse(opt);
-
-        // console.log('fileBuildInfo', fileBuildInfo);
 
         // 包的模块信息
         let modInfos = {};
@@ -86,6 +85,9 @@ module.exports = {
     },
     saveConf(packName, packInfo, opt) {
         fs.ensureDirSync(opt.mapDir);
+
+        packInfo.map = sortObj(packInfo.map);
+
         let jetmap = {
             [packName]: packInfo
         };
@@ -160,30 +162,22 @@ module.exports = {
 
             // 如果使用hash. 那么还需要保存一份原始路径的代码，用于兜底
             if (opt.useHash) {
-
                 let originPath = path.join(opt.distDir, fileBuildInfo.src);
                 let distPath = path.join(opt.distDir, fileBuildInfo.dist);
-                console.log(distPath, originPath);
                 this.saveOriginPath(distPath, originPath);
             }
         }
-
-        // require('atomworker') 实际是require哪个
-        // let defaultId = packName;
-        // if (!packInfo.map[defaultId]) { // 如果没有具名定义，那么需要映射到入口id上
-        //     let realId = path.join(packName, main);
-        //     if (packInfo.map[realId]) {
-        //         packInfo.map[defaultId] = packInfo.map[realId];
-        //     }
-        // }
-        // let packNames = Object.keys(ret); // 一个包里可能构建出好几个包的配置，比如superframe包里可能具名定义了 atomworker这个模块
-        // // 监测
-        // let otherPackNames = packNames.filter(thePackName => thePackName !== packName);
-        // if (otherPackNames.length) {
-        //     log.warn(`包${packName}里面定义了其它包${otherPackNames.join(', ')}代码，其它包信息不会计入配置文件`);
-        // }
-
         return packages;
+    },
+    run(analyseOpt) {
+        return new Promise(function (resolve, reject) {
+            walk.run(analyseOpt, function (err, results) {
+                if (err) {
+                    return reject(err);
+                }
+                resolve(results);
+            });
+        });
     },
     async build(userConf) {
         let opt = Object.assign({}, defaultOpt, userConf); // 复制一份用户配置
@@ -215,14 +209,14 @@ module.exports = {
             useHash: opt.useHash,
             analyserConfig: {
                 amdWrapper: opt.amdWrapper,
-                beautify: opt.beautify  // 【可选】是否格式化代码
+                beautify: opt.beautify // 是否格式化代码
             }
         };
 
-        let result = jet.walk(analyseOpt);
+        let result = await this.run(analyseOpt);
+        // let result = jet.walk(analyseOpt);
 
         let packageInfos = await module.exports.outputPackages(result, opt);
-
 
         if (opt.saveMap) {
             fs.ensureDirSync(opt.mapDir);
@@ -235,6 +229,13 @@ module.exports = {
         return packageInfos;
     }
 };
+
+function sortObj(obj) {
+    let newObj = {};
+    let keys = Object.keys(obj);
+    keys.sort().forEach((key, i) => newObj[key] = obj[key]);
+    return newObj;
+}
 
 
 function savaPHPMap(packageInfos, filename, opt) {

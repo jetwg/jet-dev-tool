@@ -12,3 +12,4 @@ output
 public/js
 public/map
 noderuntime
+package-lock.json

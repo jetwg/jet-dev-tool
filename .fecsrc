@@ -2,7 +2,8 @@
     "eslint": {
         "env": {
             "node": true,
-            "browser": true
+            "browser": true,
+            "es6": true
         },
 
         "globals": {
@@ -12,7 +13,9 @@
             "BNJS": true,
             "replaceUrl": true,
             "hideHeader": true,
-            "app": true
+            "app": true,
+            "Set": true,
+            "akb": true
         },
 
         "rules": {

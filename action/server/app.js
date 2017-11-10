@@ -16,6 +16,24 @@ const util = require('../../lib/util');
 const loader = require('./loader');
 
 
+function format(messages) {
+    let output = '';
+    messages.forEach(message => {
+        let val = message[1];
+        if (val === undefined || val === null) {
+            val = '';
+        }
+        if (typeof val !== 'string') { // obj array等
+            val = JSON.stringify(val);
+        }
+        // [ ] 转换成形式:  &#x + ASCII值。 因为格式化时外围时[]
+        val = val.replace(/\[/g, '&#x123');
+        val = val.replace(/\]/g, '&#x125');
+        output += `${message[0]}[${val}] `;
+    });
+    return output;
+}
+
 async function start(conf = {}) {
     const app = new Koa();
     const router = new Router();
@@ -28,7 +46,10 @@ async function start(conf = {}) {
     // 日志收集
     app.use(async function (ctx, next) {
         ctx.set('Access-Control-Allow-Origin', '*');
-        ctx.addInfo = function () {};
+
+        ctx.addInfo = function (key, value) {
+            log.warn(format([key, value]));
+        };
 
         try {
             await next();
@@ -77,8 +98,8 @@ async function start(conf = {}) {
             comboPath = comboPath.replace('?', '');
             let paths = Array.from(new Set(comboPath.split(','))); // 去重
 
-            // _db_开头的模块忽略掉
-            paths = paths.filter(codePath => codePath.indexOf('_db_') !== 0);
+            // _ignore_开头的模块忽略掉
+            paths = paths.filter(codePath => codePath.indexOf('_ignore_') !== 0);
 
             await loader.loadRemoteCode(paths, null, conf); // 多加的， 加载远程代码
             let res = await jetcore.bypath(paths, null, ctx);
