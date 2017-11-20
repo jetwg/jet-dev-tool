@@ -150,7 +150,10 @@ module.exports = {
             for (let moduleId of Object.keys(defines)) {
                 let moduleInfo = defines[moduleId];
                 if (packInfo.map[moduleId]) {
-                    log.warn(`包${packName}里面定义两个及以上相同amd模块${moduleId}， 将只保留一个，请check代码正确性`);
+                    // log.warn(`包${packName}里面定义两个及以上相同amd模块${moduleId}， 将只保留一个，请check代码正确性`);
+                    // ralltiir包里存在 ralltiir.js ralltiir.min.js ，两者模块一样，但是代码却有不一致，
+                    // 而两个文件每次构建出来顺序不确定，最后一个文件的模块会覆盖之前的，因此导致线上代码不确定使用哪个而引起问题
+                    throw new Error(`包${packName}里面定义两个及以上相同amd模块${moduleId}`);
                     // log.warn(`包${packName}里面定义两个及以上相同amd模块${moduleId}， 将只保留一个，请check代码正确性`);
                 }
                 packInfo.map[moduleId] = {

@@ -37,9 +37,11 @@ function run(config, cb) {
         }
 
         let subPath = path.normalize(inputPath.substring(srcDir.length));
-        subPath = subPath.substr(1);
+        subPath = subPath.substr(1); // eg: zepto/zepto.js
         let idPath = path.normalize(path.join(config.baseId, subPath));
-        let id = path.join(path.dirname(idPath), path.basename(idPath, '.js'));
+        let id = path.join(path.dirname(idPath), path.basename(idPath, '.js')); // eg: zepto/zepto
+
+        let packName = id.split(path.sep)[0]; // 从文件里获取到包名
 
         let opt = {
             inputPath,
@@ -49,6 +51,7 @@ function run(config, cb) {
                 distDir
             },
             subPath,
+            packName, // 该文件所属包名
             useHash: config.useHash,
             baseId: id,
             amdWrapper: config.analyserConfig.amdWrapper,
@@ -58,7 +61,7 @@ function run(config, cb) {
         totalNum++;
         workers(opt, function (err, result) {
             finishedNum++;
-            console.log('finishedNum, totalNum', finishedNum, totalNum);
+            // console.log('finishedNum, totalNum', finishedNum, totalNum);
             if (err) {
                 stop = true;
                 workerFarm.end(workers);
@@ -112,16 +115,6 @@ function run(config, cb) {
             noMoreInput = true;
         });
     }
-
-    // let argv = process.argv;
-    // let result = child_process.spawnSync(argv[0], [__dirname + '/walk.js'], {
-    //     input: JSON.stringify(config),
-    //     stdio: [
-    //         'pipe', 'pipe', process.stderr
-    //     ]
-    // });
-    // let stdout = result.stdout;
-    // return JSON.parse(stdout.toString('utf8'));
 }
 
 module.exports = {

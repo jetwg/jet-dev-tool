@@ -96,7 +96,6 @@ function listenDir(conf) {
     // 监控项目文件的改动
     chokidar.watch(watchDirs, chokidarOpt).on('add', handleWatch);
     chokidar.watch(watchDirs, chokidarOpt).on('change', handleWatch);
-
     chokidar.watch(watchDirs, chokidarOpt).on('unlink', handleWatch);
     // chokidar.watch(watchDirs, chokidarOpt).on('unlinkDir', handleRemoveWatch);
 }
@@ -111,8 +110,8 @@ async function compileAll(conf) {
         mapDir: conf.mapDir,
         amdWrapper: false,
         clean: true,
-        useHash: false,
-        beautify: true  // 【可选】是否格式化代码
+        useHash: true,
+        beautify: true // 【可选】是否格式化代码
     });
     let lruMapCache = jetcore.getCacheObj();
     lruMapCache.reset();
@@ -145,7 +144,7 @@ async function compileSingle(conf, thePath) {
             baseId: baseId,
             packageName: packName,
             amdWrapper: false,
-            beautify: true  // 【可选】是否格式化代码
+            beautify: true // 【可选】是否格式化代码
         });
         // console.log('moduleInfos', moduleInfos);
         for (let moduleId of Object.keys(moduleInfos)) {

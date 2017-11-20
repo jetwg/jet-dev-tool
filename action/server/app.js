@@ -86,7 +86,7 @@ async function start(conf = {}) {
         logs: true
     }));
 
-    router.get(['/bypath', '/combo/jetdist'], async function (ctx, next) {
+    router.get(['/bypath.js', '/bypath', '/combo/jetdist'], async function (ctx, next) {
         try {
             let params = ctx.query;
             let keys = Object.keys(params);
@@ -96,6 +96,7 @@ async function start(conf = {}) {
                 return;
             }
             comboPath = comboPath.replace('?', '');
+            comboPath = comboPath.split('?')[0];
             let paths = Array.from(new Set(comboPath.split(','))); // 去重
 
             // _ignore_开头的模块忽略掉

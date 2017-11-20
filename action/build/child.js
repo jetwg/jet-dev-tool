@@ -22,7 +22,8 @@ function hashToPath(hash) {
         .replace(/\//g, '_')
         .replace(/\+/g, '_');
 
-    return hash.match(/.{2}|./g).join('/');
+    // return hash.match(/.{2}|./g).join('/');
+    return hash;
 }
 
 function writeFile(filepath, cont) {
@@ -77,7 +78,7 @@ function getContent(config) {
 
 module.exports = function (config, callback) {
     getContent(config).then(function (inputContent) {
-        let {srcDir, distDir, inputPath} = config;
+        let {srcDir, distDir, inputPath, packName} = config;
 
         let result = Analyser.analyse({
             code: inputContent,
@@ -130,7 +131,7 @@ module.exports = function (config, callback) {
             }
 
             if (outputConf.hashPath) {
-                result.dist = hashToPath(result.hash) + '.js';
+                result.dist = packName + '/' + hashToPath(result.hash) + '.js';
                 // console.log('hasresult ', result.dist , config.baseId, outputConf.distDir);
 
                 let hashPath = path.join(outputConf.distDir, result.dist);
